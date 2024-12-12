@@ -1,0 +1,15 @@
+/wp-content/mu-plugins
+│   __country-access-blocker.php
+│
+└───__country-access-blocker
+	│   class-country-blocker-admin.php
+	│   class-country-blocker-db.php
+	│   class-country-blocker.php
+	│
+	├───assets
+	│	   country-access-blocker-countries.csv
+	│	   country-preload.csv
+	│	   folder_structure.txt
+	│
+	└───js
+			admin.js

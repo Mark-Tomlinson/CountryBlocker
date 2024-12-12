@@ -7,7 +7,7 @@
  *
  * @package		WordPress
  * @subpackage	Security\CountryBlocker
- * @since		1.9
+ * @since		1.10
  */
 
 if (!defined('ABSPATH')) exit;
@@ -203,9 +203,11 @@ class CountryBlocker {
 		country_blocker_db()->update_visit_stats($country_data->country);
 		
 		// If we're an admin user and admin country isn't set, set it now
-		if (current_user_can('manage_options') && !get_option(COUNTRY_BLOCKER_OPTIONS['admin_country'])) {
-			add_option(COUNTRY_BLOCKER_OPTIONS['admin_country'], $country_data->country);
-			return;
+		if (current_user_can('manage_options')) {
+			if (!get_option(COUNTRY_BLOCKER_OPTIONS['admin_country'])) {
+				add_option(COUNTRY_BLOCKER_OPTIONS['admin_country'], $country_data->country);
+			}
+			return;	// Don't block admin no matter what
 		}
 		
 		$blocked_countries = $this->get_blocked_countries();

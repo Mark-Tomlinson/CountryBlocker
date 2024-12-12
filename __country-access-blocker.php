@@ -4,14 +4,14 @@
  *
  * @package		WordPress
  * @subpackage	Security\CountryBlocker
- * @since		1.9
+ * @since		1.10
  * 
  * @wordpress-plugin
  * Plugin Name:	Country Access Blocker
  * Description:	Blocks website access based on visitor country of origin using the 'country.is' API. 
  *				Maintains aggregate statistics of visits per country and allows administrators to 
  *				block specific countries while protecting admin access.
- * Version:		1.9
+ * Version:		1.10
  * Author:		Mark Tomlinson and Anthropic Claude
  * License:		GPLv2 or later
  * License URI:	https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,16 +20,17 @@
 
 if (!defined('ABSPATH')) exit;
 
-// Load the database handler class
-require_once __DIR__ . '/_country-access-blocker/class-country-blocker-db.php';
-
 // Define plugin constants
 define('COUNTRY_BLOCKER_VERSION', '1.9');
-define('COUNTRY_BLOCKER_PATH', __DIR__ . '/_country-access-blocker');
+define('COUNTRY_BLOCKER_FOLDER', '/__country-access-blocker');
+define('COUNTRY_BLOCKER_PATH', __DIR__ . COUNTRY_BLOCKER_FOLDER);
 define('COUNTRY_BLOCKER_OPTIONS', [
 	'blocked_countries' => 'country_blocker_blacklist',
 	'admin_country' => 'country_blocker_admin_country'
 ]);
+
+// Load the database handler class
+require_once COUNTRY_BLOCKER_PATH . '/class-country-blocker-db.php';
 
 /**
  * Provides global access to the database handler instance

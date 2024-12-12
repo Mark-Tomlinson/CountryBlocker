@@ -60,7 +60,7 @@ class CountryBlockerDB {
 
 	/**
 	 * Initialize the database table
-	 * @return	void
+	 * @return void
 	 */
 	public function initialize_table() {
 		global $wpdb;
@@ -77,6 +77,92 @@ class CountryBlockerDB {
 		
 		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 		dbDelta($sql);
+		
+		// Preload countries if table was just created
+		if ($wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name}") == 0) {
+			$csv_path = COUNTRY_BLOCKER_PATH . '/assets/country-preload.csv';
+			$this->preload_visitor_stats($csv_path);
+		}
+	}
+
+	/**
+	 * Preload visitor statistics with initial country data
+	 * 
+	 * @param string $csv_path Path to the CSV file containing country data
+	 * @return int Number of countries preloaded
+	 */
+	public function preload_visitor_stats($csv_path) {
+		global $wpdb;
+		
+		// Verify file exists and is readable
+		if (!file_exists($csv_path) || !is_readable($csv_path)) {
+			return 0;
+		}
+		
+		// Read CSV file
+		$handle = fopen($csv_path, 'r');
+		if ($handle === false) {
+			return 0;
+		}
+		
+		$count = 0;
+
+		// Start transaction for data consistency
+		$wpdb->query('START TRANSACTION');
+		
+		try {
+			// Process each line
+			while (($data = fgetcsv($handle)) !== false) {
+				if (count($data) !== 2) {
+					continue;							// Skip invalid rows
+				}
+				
+				// Extract country name and code
+				$country_name = trim($data[0], '"');	// Remove quotes if present
+				$country_code = trim($data[1], '"');
+				
+				// Validate country code format (2 letters)
+				if (strlen($country_code) !== 2) {
+					continue;
+				}
+				
+				// Only insert if country doesn't already exist
+				$exists = $wpdb->get_var($wpdb->prepare(
+					"SELECT 1 FROM {$this->table_name} WHERE country_code = %s",
+					$country_code
+				));
+				
+				if (!$exists) {
+					// Insert with minimal initial visits
+					$wpdb->insert(
+						$this->table_name,
+						array(
+							'country_code' => $country_code,
+							'total_visits' => 0,
+							'blocked_visits' => 0,
+							'first_visit' => NULL,
+							'last_visit' => NULL
+						),
+						array('%s', '%d', '%d', '%s', '%s')
+					);
+					
+					if ($wpdb->last_error === '') {
+						$count++;
+					}
+				}
+			}
+			
+			// Commit transaction if everything succeeded
+			$wpdb->query('COMMIT');
+			
+		} catch (Exception $e) {
+			// Rollback on any error
+			$wpdb->query('ROLLBACK');
+			$count = 0;
+		}
+		
+		fclose($handle);
+		return $count;
 	}
 
 	/**
@@ -87,10 +173,11 @@ class CountryBlockerDB {
 		global $wpdb;
 		
 		$wpdb->query($wpdb->prepare(
-			"INSERT INTO {$this->table_name} (country_code, total_visits, last_visit) 
-			VALUES (%s, 1, NOW())
+			"INSERT INTO {$this->table_name} (country_code, total_visits, first_visit, last_visit) 
+			VALUES (%s, 1, NOW(), NOW())
 			ON DUPLICATE KEY UPDATE 
 				total_visits = total_visits + 1,
+				first_visit = COALESCE(first_visit, NOW()),
 				last_visit = NOW()",
 			$country_code
 		));

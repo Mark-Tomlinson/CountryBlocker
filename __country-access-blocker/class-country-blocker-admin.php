@@ -7,7 +7,7 @@
  *
  * @package		WordPress
  * @subpackage	Security\CountryBlocker
- * @since		1.9
+ * @since		1.10
  */
 
 if (!defined('ABSPATH')) exit;
@@ -38,14 +38,14 @@ class CountryBlockerAdmin {
 
 	/**
 	 * Enqueues required scripts and styles for admin page
-	 * @param	string	$hook	Current admin page hook
+	 * @param   string  $hook   Current admin page hook
 	 */
 	public function enqueue_admin_scripts($hook) {
 		if ($hook !== 'toplevel_page_country-blocker') {
 			return;
 		}
 
-		// First load TableSorter
+		// Enqueue TableSorter core (only needed for sorting now)
 		wp_enqueue_script(
 			'tablesorter',
 			'https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.32.0/js/jquery.tablesorter.min.js',
@@ -54,21 +54,14 @@ class CountryBlockerAdmin {
 			true
 		);
 
-		// Then add our initialization code
-		wp_add_inline_script('tablesorter', '
-			jQuery(document).ready(function($) {
-				if (typeof $.tablesorter === "undefined") {
-					console.error("TableSorter not loaded");
-					return;
-				}
-				$(".wp-list-table").tablesorter({
-					headers: {
-						6: { sorter: false }	// Disable sorting on checkbox column
-					},
-					sortList: [[2,1]]			// Default sort by total visits descending
-				});
-			});
-		');
+		// Enqueue our custom script
+		wp_enqueue_script(
+			'country-blocker-admin',
+			plugins_url(COUNTRY_BLOCKER_FOLDER . '/js/admin.js', dirname(__FILE__)),
+			array('tablesorter'),
+			COUNTRY_BLOCKER_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -103,7 +96,7 @@ class CountryBlockerAdmin {
 	 * Loads country data from CSV file into memory
 	 */
 	private function load_country_data() {
-		$csv_file = COUNTRY_BLOCKER_PATH . '/country-access-blocker-countries.csv';
+		$csv_file = COUNTRY_BLOCKER_PATH . '/assets/country-access-blocker-countries.csv';
 		if (file_exists($csv_file)) {
 			$handle = fopen($csv_file, 'r');
 			if ($handle !== false) {
@@ -208,21 +201,20 @@ class CountryBlockerAdmin {
 							<td data-sort-value="<?php echo esc_attr($stat->blocked_visits); ?>">
 								<?php echo number_format($stat->blocked_visits); ?>
 							</td>
-							<td data-sort-value="<?php echo esc_attr(strtotime($stat->first_visit)); ?>">
-								<?php echo esc_html($stat->first_visit); ?>
+							<td data-sort-value="<?php echo esc_attr($stat->first_visit ? strtotime($stat->first_visit) : 0); ?>">
+								<?php echo $stat->first_visit ? esc_html($stat->first_visit) : 'Never'; ?>
 							</td>
-							<td data-sort-value="<?php echo esc_attr(strtotime($stat->last_visit)); ?>">
-								<?php echo esc_html($stat->last_visit); ?>
-							</td>
-							<td>
-								<?php if ($stat->country_code === $admin_country): ?>
-									<em>Protected</em>
-								<?php else: ?>
-									<input type="checkbox" 
-										name="<?php echo esc_attr(COUNTRY_BLOCKER_OPTIONS['blocked_countries']); ?>[]" 
-										value="<?php echo esc_attr($stat->country_code); ?>"
-										<?php checked(in_array($stat->country_code, $blocked_countries)); ?>>
-								<?php endif; ?>
+							<td data-sort-value="<?php echo esc_attr($stat->last_visit ? strtotime($stat->last_visit) : 0); ?>">
+								<?php echo $stat->last_visit ? esc_html($stat->last_visit) : 'Never'; ?>
+							</td>							<td>
+							<?php if ($stat->country_code === $admin_country) { ?>
+								<span class="dashicons dashicons-lock"></span>
+							<?php } else { ?>
+								<input type="checkbox" 
+									name="<?php echo esc_attr(COUNTRY_BLOCKER_OPTIONS['blocked_countries']); ?>[]"
+									value="<?php echo esc_attr($stat->country_code); ?>"
+									<?php checked(in_array($stat->country_code, $blocked_countries)); ?>>
+							<?php }; ?>
 							</td>
 						</tr>
 						<?php endforeach; ?>
